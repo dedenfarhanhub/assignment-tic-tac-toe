@@ -1,0 +1,13 @@
+<main>
+  <% if @current_user.blank? %>
+    <%= render partial: 'sessions/form' %>
+  <% elsif @current_user.present? %>
+    <section id="game-config" style="display: block;">
+      <span>Welcome <%= @current_user['nickname'] %></span>
+
+      <%= form_tag games_path do %>
+        <button class="btn btn-success join-random-room-btn" type="submit">Play Game</button>
+      <% end %>
+    </section>
+  <% end %>
+</main>

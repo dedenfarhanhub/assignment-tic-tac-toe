@@ -1,0 +1,195 @@
+<main>
+  <section id="active-game" style="display: block;">
+    <article id="game-over" style="display: none;">
+      <h2>Game over status text</h2>
+      <div>
+        <%= form_tag games_path do %>
+          <button class="btn btn-primary join-random-room-btn" type="submit">New Game</button>
+        <% end %>
+      </div>
+    </article>
+    <div id="players-info">
+      <p id="player1" class="player-name" data-label="<%= @game.player_role_label_x(@current_user['player_session_id']) %>"><%= @game.player_info(@game.player1_name, 'X') %></p>
+      <p>vs</p>
+      <p id="player2" class="player-name" data-label="<%= @game.player_role_label_o(@current_user['player_session_id']) %>"><%= @game.player_info(@game.player2_name, 'O') %></p>
+    </div>
+    <div class="game-error-message" style="display: none;">
+      <p>
+        <span id="error-message">Game error message</span>
+        <button onclick="hideErrorMessage()">X</button>
+      </p>
+    </div>
+    <ol id="game-board">
+      <% @game.board.each_with_index do |row, row_index| %>
+        <% row.each_with_index do |cell, col_index| %>
+          <% cell_classes = cell.present? ? 'selected' : '' %>
+          <li
+            data-row="<%= row_index %>"
+            data-col="<%= col_index %>"
+            class="cell-board <%= cell_classes %>"
+            data-cell="<%= cell || '-' %>"
+          >
+            <%= cell || '-' %>
+          </li>
+        <% end %>
+      <% end %>
+    </ol>
+
+    <div id="game-turn" style="display: flex;">
+      <p>
+        It's <span id="active-player-name"><%= @game.turn_you?(@current_user['player_session_id']) ? 'You' : 'Opponent' %></span>'s turn!
+      </p>
+    </div>
+    <div id="active-game-buttons" style="display: flex;">
+      <button class="btn btn-warning join-random-room-btn join-new-room-btn" onclick="endTurn()">End Turn</button>
+      <button class="btn btn-danger invite-friend-btn join-new-room-btn" onclick="resetGame()">
+        Reset
+      </button>
+    </div>
+  </section>
+</main>
+
+<script type="text/javascript" charset="utf-8">
+    const initialOutcomeLabel = '<%= @game.winner %>';
+    document.addEventListener('DOMContentLoaded', function() {
+        const gameId = '<%= @game.id %>';
+        const cable = ActionCable.createConsumer('<%= "#{request.protocol == 'https:' ? 'wss' : 'ws'}://#{request.host_with_port}/cable" %>');
+
+        cable.subscriptions.create({ channel: 'GamesChannel', id: gameId }, {
+            received: function(data) {
+                console.log(data)
+                if (data.board_selected) {
+                    updateBoard(data.board_selected);
+                }
+                if (data.game.current_player) {
+                    updateTurnText(data.game.current_player)
+                }
+                if (data.game.winner) {
+                    showGameOver(data.game.winner);
+                }
+                if (data.opponent_join) {
+                    handleOpponentJoin(data.game.player2_name);
+                }
+            }
+        });
+
+        document.querySelectorAll('.cell-board').forEach(function(cell) {
+            cell.addEventListener('click', function() {
+                const row = this.getAttribute('data-row');
+                const col = this.getAttribute('data-col');
+
+                // Make a move by sending a request to the server
+                fetch(`<%= move_game_path(@game) %>`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': '<%= form_authenticity_token %>'
+                    },
+                    body: JSON.stringify({ row: row, col: col })
+                }).then(response => {
+                    if (!response.ok) {
+                        return response.json().then(data => {
+                            showErrorMessage(data.error);
+                        });
+                    }
+                });
+            });
+        });
+    });
+
+    if (typeof initialOutcomeLabel !== 'undefined' && initialOutcomeLabel) {
+        showGameOver(initialOutcomeLabel);
+    }
+
+    function updateBoard(boardSelected) {
+        const cellElement = document.querySelector(`.cell-board[data-row="${boardSelected.row}"][data-col="${boardSelected.col}"]`);
+        const cellValue = boardSelected.cell_value || '-';
+        cellElement.innerHTML = cellValue;
+        cellElement.classList.toggle('selected', cellValue !== '-');
+    }
+
+    function endTurn() {
+        fetch(`<%= end_turn_game_path(@game) %>`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': '<%= form_authenticity_token %>'
+            }
+        })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        showErrorMessage(data.error);
+                    });
+                } else {
+                    // On success, redirect to games_path
+                    window.location.href = '<%= games_path %>';
+                }
+            })
+            .catch(error => {
+                console.error('Error during endTurn:', error);
+            });
+    }
+
+
+    function resetGame() {
+        fetch(`<%= reset_game_path(@game) %>`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': '<%= form_authenticity_token %>'
+            }
+        })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        showErrorMessage(data.error);
+                    });
+                } else {
+                    // On success, redirect to games_path
+                    window.location.href = '<%= games_path %>';
+                }
+            })
+            .catch(error => {
+                console.error('Error during resetGame:', error);
+            });
+    }
+
+    function showErrorMessage(message) {
+        const errorMessageElement = document.getElementById('error-message');
+        errorMessageElement.innerText = message;
+        document.querySelector('.game-error-message').style.display = 'block';
+    }
+
+    function hideErrorMessage() {
+        document.querySelector('.game-error-message').style.display = 'none';
+    }
+
+    function showGameOver(winner) {
+        let outcomeLabel;
+
+        if (winner === 'draw') {
+            outcomeLabel = 'Draw';
+        } else if (winner === '<%= @current_user['player_session_id'] %>') {
+            outcomeLabel = 'You Won';
+        } else {
+            outcomeLabel = 'You Lost';
+        }
+        const gameOverElement = document.getElementById('game-over');
+        const statusTextElement = gameOverElement.querySelector('h2');
+        statusTextElement.innerText = `Game Over - ${outcomeLabel}`;
+
+        gameOverElement.style.display = 'block';
+    }
+
+    function updateTurnText(currentPlayer) {
+        const isTurnYou = currentPlayer === '<%= @current_user['player_session_id'] %>';
+        const activePlayerNameElement = document.getElementById('active-player-name');
+        activePlayerNameElement.innerText = isTurnYou ? 'You' : 'Opponent';
+    }
+
+    function handleOpponentJoin(playerName) {
+        const player2Element = document.getElementById('player2');
+        player2Element.innerHTML = playerName + '(O)';
+    }
+</script>

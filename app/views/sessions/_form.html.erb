@@ -1,0 +1,19 @@
+<section id="game-config" style="display: block;">
+  <%= form_tag sessions_path do %>
+    <div class="form-control">
+      <div>
+        <%= label_tag 'user_nickname', 'Choose Your Name' %>
+        <%= text_field_tag 'user[nickname]', nil, required: true %>
+      </div>
+    </div>
+    <div class="form-error-message">
+      <p><%= flash[:error] %></p>
+    </div>
+    <div class="form-success-message">
+      <p><%= flash[:success] %></p>
+    </div>
+    <div class="form-buttons">
+      <%= button_tag 'Set Name', class: 'btn btn-success join-random-room-btn', type: 'submit' %>
+    </div>
+  <% end %>
+</section>

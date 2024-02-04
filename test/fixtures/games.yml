@@ -1,0 +1,45 @@
+# == Schema Information
+#
+# Table name: games
+#
+#  id                 :integer          not null, primary key
+#  player1_session_id :string
+#  player1_name       :string
+#  player2_session_id :string
+#  player2_name       :string
+#  current_player     :string
+#  current_symbol     :string
+#  board              :json
+#  winner             :string
+#  status             :integer
+#  created_at         :datetime         not null
+#  updated_at         :datetime         not null
+#
+
+# This model initially had no columns defined. If you add columns to the
+# model remove the "{}" from the fixture names and add the columns immediately
+# below each fixture, per the syntax in the comments below
+#
+one: {}
+# column: value
+#
+two: {}
+# column: value
+
+# test/fixtures/games.yml
+game_1:
+  id: 1
+  player1_session_id: 'player_1'
+  player1_name: 'Player 1'
+  player2_session_id: 'player_2'
+  player2_name: 'Player 2'
+  current_player: 'player_1'
+  current_symbol: 'X'
+  board:
+    - [nil, nil, nil]
+    - [nil, nil, nil]
+    - [nil, nil, nil]
+  winner: nil
+  status: 0
+  created_at: <%= 1.day.ago %>
+  updated_at: <%= 1.day.ago %>
