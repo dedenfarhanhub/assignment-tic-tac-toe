@@ -5,7 +5,7 @@ This project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
-## [0.0.0] - 2024-02-02
+## [1.0.0] - 2024-02-02
 ### Game Refactoring with ActionCable
 #### Added
 
